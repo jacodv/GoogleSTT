@@ -1,0 +1,234 @@
+﻿<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>GoogleSTT</title>
+
+    <!-- HTML5 Speech Recognition API -->
+</head>
+
+<body>
+    <p>This is the start:</p>
+    <div id="result"></div>
+    <form id="labnol" method="get" action="https://www.google.com/search">
+        <div class="speech">
+            <input type="text" name="q" id="transcript" placeholder="Speak" />
+            <img onclick="configureAudio()" src="//i.imgur.com/cHidSVu.gif" />
+            <button onclick="stopRecording()">Stop</button>
+        </div>
+        <hr />
+        <ul id="messages">
+            <li>Messages below</li>
+        </ul>
+
+        <div class="container">
+            <div class="row"> </div>
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="col-md-6">
+                        <div class="col-md-3">User</div>
+                        <div class="col-md-9"><input type="text" id="userName" /></div>
+                    </div>
+                </div>
+                <div class="col-md-12">
+                    <div class="col-md-6">
+                        <div class="col-md-3">Message</div>
+                        <div class="col-md-9">
+                            <input type="text" id="userMessage" />
+                            <input type="button" id="sendMessage" value="Send Message" />
+                            <input type="button" id="conenctWS" value="Connect" onclick="connect()" />
+                            <input type="button" id="conenctStatus" value="Status" onclick="status()" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <hr />
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-6"> </div>
+                <div class="col-6">
+                    <ul id="messagesList"></ul>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <script src="lib/signalr/signalr.js"></script>
+    <script>
+        // const chatConn = new signalR.HubConnectionBuilder()
+        //     .withUrl("/chatHub")
+        //     .build();
+
+        // const audioConn = new signalR.HubConnectionBuilder()
+        //     .withUrl("/audioHub")
+        //     .build();
+
+        //This method receive the message and Append to our list  
+        // chatConn.on("ReceiveMessage", (user, message) => {
+        //     const msg = message.replace(/&/g, "&").replace(/</g, "<").replace(/>/g, ">");
+        //     const encodedMsg = user + " :: " + msg;
+        //     const li = document.createElement("li");
+        //     li.textContent = encodedMsg;
+        //     document.getElementById("messagesList").appendChild(li);
+        // });
+
+        // chatConn.start().catch(err => console.error(err.toString()));
+        // audioConn.start().catch(err => console.error(err.toString()));
+
+        //Send the message  
+
+        // document.getElementById("sendMessage").addEventListener("click", event => {
+        //     const user = document.getElementById("userName").value;
+        //     const message = document.getElementById("userMessage").value;
+        //     chatConn.invoke("SendMessage", user, message).catch(err => console.error(err.toString()));
+        //     event.preventDefault();
+        // });
+
+        function SendAudio(data) {
+            //audioConn.invoke("SendAudio", data).catch(err => console.error(err.toString()));
+            sendMessage(data);
+        }
+
+    </script>
+
+    <script>
+        var myStream;
+        var scriptProcessor;
+        var isRecording = false;
+        var audioContext;
+
+        function configureAudio() {
+            if (isRecording) {
+                stopRecording();
+                return;
+            }
+            console.log("Start recording");
+            isRecording = true;
+            window.AudioContext = window.AudioContext || window.webkitAudioContext;
+            navigator.mediaDevices.getUserMedia(
+                {
+                    audio: {
+                        mandatory: {
+                            googEchoCancellation: 'true',
+                            googAutoGainControl: 'false',
+                            googNoiseSuppression: 'true',
+                            googHighpassFilter: 'true',
+                        },
+                    },
+                }).then(startRecording)
+                .catch(e => {
+                    /* If there are some errors with parameter configurations or 
+                    user didn’t give you the access to the microphone inside the browser, you end here. */
+                    console.log(e);
+                    throw e;
+                }
+                );
+        }
+        function startRecording(stream, callback) {
+            isRecording = false;
+            audioContext = audioContext || new AudioContext();
+            if (!audioContext) {
+                return;
+            }
+            myStream = stream;
+
+            // AudioNode used to control the overall gain (or volume) of the audio graph
+
+            const inputPoint = audioContext.createGain();
+            const microphone = audioContext.createMediaStreamSource(myStream);
+            const analyser = audioContext.createAnalyser();
+            scriptProcessor = inputPoint.context.createScriptProcessor(2048, 2, 2);
+
+            microphone.connect(inputPoint);
+            inputPoint.connect(analyser);
+            inputPoint.connect(scriptProcessor);
+            scriptProcessor.connect(inputPoint.context.destination);
+            // This is for registering to the “data” event of audio stream, without overwriting the default scriptProcessor.onAudioProcess function if there is one.
+            scriptProcessor.addEventListener('audioprocess', streamAudioData);
+        }
+
+        const streamAudioData = e => {
+            const floatSamples = e.inputBuffer.getChannelData(0);
+
+            console.log("floatSamples", floatSamples);
+            SendAudio(floatSamples);
+        };
+
+        function stopRecording() {
+            try {
+                console.log("Stop recording");
+                isRecording = false;
+
+                if (myStream) {
+                    // stop the browser microphone
+                    myStream.getTracks()[0].stop();
+                    myStream = null;
+                }
+
+                if (scriptProcessor) {
+                    // Stop listening the stream from the michrophone
+                    scriptProcessor.removeEventListener('audioprocess', streamAudioData);
+                }
+            }
+            catch (e) {
+                console.error(e);
+            }
+        }
+    </script>
+
+    <script language="javascript" type="text/javascript">
+        var uri = "wss://" + window.location.host + "/audiows";
+
+        console.log("AudioWS: " + uri);
+
+        function connect() {
+            console.log("connecting...")
+            socket = new WebSocket(uri);
+            socket.onopen = function (event) {
+                console.log("opened connection to " + uri);
+            };
+            socket.onclose = function (event) {
+                console.log("closed connection from " + uri);
+            };
+            socket.onmessage = function (event) {
+                appendItem(list, event.data);
+                console.log(event.data);
+            };
+            socket.onerror = function (event) {
+                console.log("error: " + event.data);
+            };
+
+            console.log("done...", socket);
+        }
+
+        function status() {
+            console.log("status...", socket);
+        }
+
+        var list = document.getElementById("messages");
+        // var button = document.getElementById("sendMessage");
+        // button.addEventListener("click", function () {
+
+        //     var input = document.getElementById("textInput");
+        //     sendMessage(input.value);
+
+        //     input.value = "";
+        // });
+        function sendMessage(message) {
+            console.log("Sending: audio data");
+            socket.send(message);
+        }
+        function appendItem(list, message) {
+            var item = document.createElement("li");
+            item.appendChild(document.createTextNode(message));
+            list.appendChild(item);
+        }    
+    </script>
+
+</body>
+
+</html>

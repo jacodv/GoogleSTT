@@ -5,7 +5,25 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Content Remove="Resources\GOOGLE_CREDS.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\GOOGLE_CREDS.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Google.Cloud.Speech.V1" Version="1.1.0-beta02" />
     <PackageReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.AspNetCore.Connections.Abstractions" Version="2.1.3" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR" Version="1.0.3" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="1.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Log4Net.AspNetCore" Version="2.2.5" />
+    <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="wwwroot\lib\signalr\" />
   </ItemGroup>
 
 </Project>

@@ -23,6 +23,33 @@
     </ul>
 
     <script>
+        async function audioBufferToWaveBlob(audioBuffer) {
+
+            return new Promise(function (resolve, reject) {
+
+                var worker = new Worker('./waveWorker.js');
+
+                worker.onmessage = function (e) {
+                    var blob = new Blob([e.data.buffer], { type: "audio/wav" });
+                    resolve(blob);
+                };
+
+                let pcmArrays = [];
+                for (let i = 0; i < audioBuffer.numberOfChannels; i++) {
+                    pcmArrays.push(audioBuffer.getChannelData(i));
+                }
+
+                worker.postMessage({
+                    pcmArrays,
+                    config: { sampleRate: audioBuffer.sampleRate }
+                });
+
+            });
+
+        }
+    </script>
+
+    <script>
         var microphone;
         var myStream;
         var scriptProcessor;
@@ -73,7 +100,7 @@
 
             microphone = audioContext.createMediaStreamSource(stream);
             var analyser = audioContext.createAnalyser();
-            scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
+            scriptProcessor = audioContext.createScriptProcessor(4096, 2, 2);
 
             microphone.connect(analyser);
             scriptProcessor.connect(audioContext.destination);
@@ -83,28 +110,37 @@
         }
 
         const streamAudioData = e => {
-            const floatSamples = e.inputBuffer.getChannelData(0);
+
+            // var buffer = [
+            //     e.inputBuffer.getChannelData(0),
+            //     e.inputBuffer.getChannelData(1)];
 
             // attempt to change the byte format
-            var sendMe = new Float32Array(floatSamples.length / 16);
-            for (var i = 0; i * 16 < floatSamples.length; i++) {
-                sendMe[i] = floatSamples[i * 16];
-            }
+            // var sendMe = new Float32Array(floatSamples.length / 16);
+            // for (var i = 0; i * 16 < floatSamples.length; i++) {
+            //     sendMe[i] = floatSamples[i * 16];
+            // }
 
-            sendMessage(sendMe);
+            audioBufferToWaveBlob(e.inputBuffer)
+                .then(waveBlob => {
+                    console.log("sending wave blob");
+                    sendMessage(waveBlob);
+                })
+                .catch(e => {
+                    console.error(e);
+                });
+
         };
 
         function stopRecording() {
             try {
                 isRecording = false;
 
-                if(socket)
-                {
+                if (socket) {
                     socket.close();
                 }
 
-                if(microphone)
-                {
+                if (microphone) {
                     console.log("Stop recording");
                     microphone.disconnect();
                 }
@@ -136,7 +172,7 @@
         function connect() {
             console.log("connecting...")
             socket = new WebSocket(uri);
-            socket.binaryType = 'arraybuffer';
+            //socket.binaryType = 'arraybuffer';
 
             socket.onopen = function (event) {
                 console.log("opened connection to " + uri);

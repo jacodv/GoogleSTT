@@ -20,6 +20,8 @@ namespace GoogleSTT.GoogleAPI
     private bool _responseIsBeingHandled = false;
     private Task _handleResponses;
     private MemoryStream _audioBuffer = new MemoryStream();
+    private string _audioFileName = null;
+    private FileStream _audioFileStream;
 
     public GoogleSpeechSession(string socketId, GoogleSessionConfig config, Action<string, string[]> processTranscripts)
     {
@@ -31,6 +33,9 @@ namespace GoogleSTT.GoogleAPI
         SockedId = socketId;
         Config = config;
         ProcessTranscripts = processTranscripts;
+
+        _audioFileName = $"{DateTime.Now:yyyyMMddHHmmss}.wav";
+        _audioFileStream = File.OpenWrite(Path.Combine($@"c:\temp", _audioFileName));
       }
       catch (Exception e)
       {
@@ -74,6 +79,7 @@ namespace GoogleSTT.GoogleAPI
         IsOpen = false;
         //_closeTokenSource?.Cancel();
       }
+      _audioFileStream.Close();
       await _streamingCall.WriteCompleteAsync();
       await _handleResponses;
     }
@@ -102,6 +108,7 @@ namespace GoogleSTT.GoogleAPI
             return Task.FromResult(-1);
           }
 
+          _audioFileStream.WriteAsync(buffer, 0, buffer.Length).Wait();
           _audioBuffer.Write(buffer, 0, buffer.Length);
 
           if (_audioBuffer.Length < 32768)

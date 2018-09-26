@@ -32,7 +32,7 @@ namespace GoogleSTT.Websockets
             
       await Receive(socket, async(result, buffer) =>
       {
-        _log.Debug($"{socket.State}-{result.MessageType}--{buffer.Length}");
+        //_log.Debug($"{socket.State}-{result.MessageType}--{buffer.Length}");
         try
         {
           switch (result.MessageType)

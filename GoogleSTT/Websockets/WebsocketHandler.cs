@@ -22,7 +22,7 @@ namespace GoogleSTT.Websockets
     public virtual async Task OnConnected(WebSocket socket)
     {
       _log.Debug($"Adding new web socket: {socket.State}");
-      WebSocketConnectionManager.AddSocket(socket);
+      WebSocketConnectionManager.AddSocket(socket, _processTranscipts);
     }
 
     public virtual async Task OnDisconnected(WebSocket socket)
@@ -62,4 +62,10 @@ namespace GoogleSTT.Websockets
 
     public abstract Task ReceiveAsyncText(WebSocket socket, WebSocketReceiveResult result, byte[] buffer);
     public abstract Task ReceiveAsyncData(WebSocket socket, WebSocketReceiveResult result, byte[] buffer);
+     
+    private void _processTranscipts(string socketId, string[] transcripts)
+    {
+      SendMessageAsync(socketId, string.Join("~", transcripts)).Wait();
+    }
+
   }}

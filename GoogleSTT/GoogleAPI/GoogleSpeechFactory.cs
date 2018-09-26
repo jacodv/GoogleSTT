@@ -1,17 +1,15 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
-using System.Threading;
 using System.Threading.Tasks;
-using Google.Cloud.Speech.V1;
 using log4net;
-using Microsoft.AspNetCore.Identity.UI.Pages.Internal.Account;
 
 namespace GoogleSTT.GoogleAPI
 {
   public static class GoogleSpeechFactory
   {
+    private static readonly ILog _log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
     private static ConcurrentDictionary<string, GoogleSpeechSession> _sessions;
 
     static GoogleSpeechFactory()
@@ -19,107 +17,36 @@ namespace GoogleSTT.GoogleAPI
       _sessions = new ConcurrentDictionary<string, GoogleSpeechSession>();
     }
 
-    public static GoogleSpeechSession CreateSession(string socketId, GoogleSessionConfig config)
+    public static GoogleSpeechSession CreateSession(string socketId, GoogleSessionConfig config, Action<string,string[]> processTranscripts)
     {
-      var session = new GoogleSpeechSession(socketId, config);
-      _sessions.GetOrAdd(socketId, session);
+      _log.Debug("Creating new GOOGLE SPEECH SESSION");
+      var session = new GoogleSpeechSession(socketId, config,processTranscripts);
+      _sessions.TryAdd(socketId, session);
       return session;
     }
 
-  }
-
-  public class GoogleSessionConfig
-  {
-    public RecognitionConfig.Types.AudioEncoding AudioEncoding { get; set; } = RecognitionConfig.Types.AudioEncoding.Linear16;
-    public int SampleRateHertz { get; set; } = 16000;
-    public string LanguageCode { get; set; } = "en";
-    public bool InterimResults { get; set; } = true;
-  }
-
-  public class GoogleSpeechSession
-  {
-    private static readonly ILog _log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-    private SpeechClient _speech;
-    private SpeechClient.StreamingRecognizeStream _streamingCall;
-    readonly object writeLock = new Object();
-    private CancellationTokenSource _closeTokenSource;
-
-    public GoogleSpeechSession(string socketId, GoogleSessionConfig config)
+    public static void CloseSession(string socketId)
     {
-      _speech = SpeechClient.Create();
-      _streamingCall = _speech.StreamingRecognize();
-      SockedId = socketId;
-      Config = config;
+      _log.Debug("Closing new GOOGLE SPEECH SESSION");
+      if (_sessions.ContainsKey(socketId))
+        _sessions[socketId].Close().Wait();
     }
 
-    public async Task Connect()
+    public static async Task SendAudio(string socketId, byte[] data)
     {
-      await _streamingCall.WriteAsync(new StreamingRecognizeRequest()
-        {
-          StreamingConfig = new StreamingRecognitionConfig()
-          {
-            Config = new RecognitionConfig()
-            {
-              Encoding = Config.AudioEncoding,
-              SampleRateHertz = Config.SampleRateHertz,
-              LanguageCode = Config.LanguageCode,
-            },
-            InterimResults = Config.InterimResults,
-          }
-        });
+      //_log.Debug("Sending to GOOGLE SPEECH SESSION");
+      if(string.IsNullOrEmpty(socketId))
+        throw new ArgumentNullException(nameof(socketId));
+      if(!_sessions.ContainsKey(socketId))
+        throw new InvalidOperationException($"SocketId: {socketId} not registered");
 
-      _closeTokenSource = new CancellationTokenSource();
-
-      HandleResponses = Task.Run(async () =>
+      if (data.Length == 0)
       {
-        while (await _streamingCall.ResponseStream.MoveNext(_closeTokenSource.Token))
-        {
-          var transcripts = new List<string>();
-          foreach (var result in _streamingCall.ResponseStream.Current.Results)
-          {
-            foreach (var alternative in result.Alternatives)
-            {
-              _log.Debug($"Transcript: {alternative.Transcript}");
-              transcripts.Add(alternative.Transcript);
-            }
-          }
-
-          ProcessTranscripts?.Invoke(transcripts.ToArray());
-        }
-      });
-    }
-
-    public async Task Close()
-    {
-      lock (writeLock)
-      {
-        IsOpen = false;
-        _closeTokenSource.Cancel();
-      }
-      await _streamingCall.WriteCompleteAsync();
-    }
-
-    public bool IsOpen { get; private set; }
-    public string SockedId { get; }
-    public GoogleSessionConfig Config { get; }
-
-    public Task SendAudio(byte[] buffer)
-    {
-      lock (writeLock)
-      {
-        if (!IsOpen) 
-          return Task.FromResult(-1);
-
-        _streamingCall.WriteAsync(new StreamingRecognizeRequest()
-        {
-          AudioContent = Google.Protobuf.ByteString.CopyFrom(buffer, 0, buffer.Length)
-        }).Wait();
+        _log.Warn("NO DATA FOR GOOGLE SPEECH SESSION");
+        return;
       }
 
-      return Task.FromResult(0);
+      await _sessions[socketId].SendAudio(data);
     }
-
-    public Task HandleResponses { get; private set; }
-    public Action<string[]> ProcessTranscripts { get; set; }
   }
 }

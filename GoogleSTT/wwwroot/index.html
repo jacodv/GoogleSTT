@@ -36,7 +36,7 @@
                         <div class="col-md-3">Message</div>
                         <div class="col-md-9">
                             <input type="text" id="userMessage" />
-                            <input type="button" id="sendMessage" value="Send Message" />
+                            <!-- <input type="button" id="sendMessage" value="Send Message" /> -->
                             <input type="button" id="conenctWS" value="Connect" onclick="connect()" />
                             <input type="button" id="conenctStatus" value="Status" onclick="status()" />
                         </div>
@@ -88,10 +88,10 @@
         //     event.preventDefault();
         // });
 
-        function SendAudio(data) {
-            //audioConn.invoke("SendAudio", data).catch(err => console.error(err.toString()));
-            sendMessage(data);
-        }
+        // function SendAudio(data) {
+        //     audioConn.invoke("SendAudio", data).catch(err => console.error(err.toString()));
+        //     sendMessage(data);
+        // }
 
     </script>
 
@@ -100,6 +100,8 @@
         var scriptProcessor;
         var isRecording = false;
         var audioContext;
+        const SAMPLE_RATE = 16000;
+        const SAMPLE_SIZE = 16;
 
         function configureAudio() {
             if (isRecording) {
@@ -108,16 +110,22 @@
             }
             console.log("Start recording");
             isRecording = true;
-            window.AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioContext = new AudioContext();
             navigator.mediaDevices.getUserMedia(
                 {
                     audio: {
-                        mandatory: {
-                            googEchoCancellation: 'true',
-                            googAutoGainControl: 'false',
-                            googNoiseSuppression: 'true',
-                            googHighpassFilter: 'true',
+                        // mandatory: {
+                        //     googEchoCancellation: 'true',
+                        //     googAutoGainControl: 'false',
+                        //     googNoiseSuppression: 'true',
+                        //     googHighpassFilter: 'true',
+                        // },
+                        echoCancellation: true,
+                        channelCount: 1,
+                        sampleRate: {
+                            ideal: SAMPLE_RATE
                         },
+                        sampleSize: SAMPLE_SIZE
                     },
                 }).then(startRecording)
                 .catch(e => {
@@ -130,23 +138,22 @@
         }
         function startRecording(stream, callback) {
             isRecording = false;
+            console.log("Before audioContext:",audioContext);
             audioContext = audioContext || new AudioContext();
             if (!audioContext) {
                 return;
             }
-            myStream = stream;
+            console.log("After audioContext:",audioContext);
 
-            // AudioNode used to control the overall gain (or volume) of the audio graph
+            var microphone = audioContext.createMediaStreamSource(stream);
+            var  analyser = audioContext.createAnalyser();
+            scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
 
-            const inputPoint = audioContext.createGain();
-            const microphone = audioContext.createMediaStreamSource(myStream);
-            const analyser = audioContext.createAnalyser();
-            scriptProcessor = inputPoint.context.createScriptProcessor(2048, 2, 2);
+            microphone.connect(analyser);
 
-            microphone.connect(inputPoint);
-            inputPoint.connect(analyser);
-            inputPoint.connect(scriptProcessor);
-            scriptProcessor.connect(inputPoint.context.destination);
+            console.log("audioContext.sampleRate", audioContext.sampleRate);
+
+            scriptProcessor.connect(audioContext.destination);
             // This is for registering to the “data” event of audio stream, without overwriting the default scriptProcessor.onAudioProcess function if there is one.
             scriptProcessor.addEventListener('audioprocess', streamAudioData);
         }
@@ -154,8 +161,12 @@
         const streamAudioData = e => {
             const floatSamples = e.inputBuffer.getChannelData(0);
 
-            console.log("floatSamples", floatSamples);
-            SendAudio(floatSamples);
+            var sendMe = new Float32Array(floatSamples.length / 16);
+            for (var i = 0; i * 16 < floatSamples.length; i++) {
+                sendMe[i] = floatSamples[i * 16];
+            }
+
+            sendMessage(sendMe);
         };
 
         function stopRecording() {
@@ -188,6 +199,8 @@
         function connect() {
             console.log("connecting...")
             socket = new WebSocket(uri);
+            socket.binaryType = 'arraybuffer';
+
             socket.onopen = function (event) {
                 console.log("opened connection to " + uri);
             };
@@ -219,7 +232,7 @@
         //     input.value = "";
         // });
         function sendMessage(message) {
-            console.log("Sending: audio data");
+            //console.log("Sending: audio data");
             socket.send(message);
         }
         function appendItem(list, message) {

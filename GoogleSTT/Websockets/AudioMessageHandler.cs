@@ -3,6 +3,7 @@ using System.Net.WebSockets;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using GoogleSTT.GoogleAPI;
 using log4net;
 
 namespace GoogleSTT.Websockets
@@ -22,6 +23,15 @@ namespace GoogleSTT.Websockets
       _log.Debug($"SocketId:{socketId}-Connected");
       await SendMessageToAllAsync($"{socketId} is now connected");
     }
+    public override async Task OnDisconnected(WebSocket socket)
+    {
+      var socketId = WebSocketConnectionManager.GetId(socket);
+            
+      await base.OnDisconnected(socket);
+
+      _log.Debug($"{socketId}: Disconnected");
+      await SendMessageToAllAsync($"{socketId} disconnected");
+    }
 
     public override Task ReceiveAsyncText(WebSocket socket, WebSocketReceiveResult result, byte[] buffer)
     {
@@ -38,33 +48,21 @@ namespace GoogleSTT.Websockets
       }
       return Task.FromResult(0);
     }
-
-    public override Task ReceiveAsyncData(WebSocket socket, WebSocketReceiveResult result, byte[] buffer)
+    public override async Task ReceiveAsyncData(WebSocket socket, WebSocketReceiveResult result, byte[] buffer)
     {
       try
       {
         var socketId = WebSocketConnectionManager.GetId(socket);
 
-        _log.Debug($"Socket ReceiveAsyncData:{result.Count}-{buffer.Length}");
-        _log.Debug($"Socket ReceiveAsyncData:{Convert.ToBase64String(buffer,0,result.Count)}");
-
-//        _log.Debug($"Socket ReceiveAsyncData:{result.Count}-{buffer.Length}");
+        //_log.Debug($"Socket ReceiveAsyncData:{result.Count}-{buffer.Length}");
+        //_log.Debug($"Socket ReceiveAsyncData:{Convert.ToBase64String(buffer,0,result.Count)}");
+        await GoogleSpeechFactory.SendAudio(socketId, new ArraySegment<byte>(buffer, 0, result.Count).Array);
       }
       catch (Exception e)
       {
         _log.Error($"Socket ReceiveAsyncData:{e.Message}",e);
       }
-      return Task.FromResult(0);
     }
-
-    public override async Task OnDisconnected(WebSocket socket)
-    {
-      var socketId = WebSocketConnectionManager.GetId(socket);
-            
-      await base.OnDisconnected(socket);
-
-      _log.Debug($"{socketId}: Disconnected");
-      await SendMessageToAllAsync($"{socketId} disconnected");
-    }
+   
   }
 }

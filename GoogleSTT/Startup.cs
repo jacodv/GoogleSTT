@@ -1,8 +1,6 @@
 ﻿using System;
 using System.IO;
 using System.Reflection;
-using GoogleSTT.CustomWebSocket;
-using GoogleSTT.Hubs;
 using GoogleSTT.Websockets;
 using log4net;
 using Microsoft.AspNetCore.Builder;
@@ -38,9 +36,6 @@ namespace GoogleSTT
         options.MinimumSameSitePolicy = SameSiteMode.None;
       });
 
-      //services.AddSingleton<ICustomWebSocketFactory, CustomWebSocketFactory>();
-      //services.AddSingleton<ICustomWebSocketMessageHandler, CustomWebSocketMessageHandler>();
-
       services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
       services.AddWebSocketManager();
     }
@@ -48,11 +43,7 @@ namespace GoogleSTT
     // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
     public void Configure(IApplicationBuilder app, IHostingEnvironment env, IServiceProvider serviceProvider, ILoggerFactory loggerFactory)
     {
-      _log.Debug("Start Configure");
-
       loggerFactory.AddLog4Net(); 
-
-
       _log.Debug("Added logging");
 
       if (env.IsDevelopment())
@@ -64,18 +55,9 @@ namespace GoogleSTT
         app.UseExceptionHandler("/Home/Error");
         app.UseHsts();
       }
-
-      var webSocketOptions = new WebSocketOptions()
-      {
-        KeepAliveInterval = TimeSpan.FromSeconds(120),
-        ReceiveBufferSize = 4 * 1024
-      };
+      
       app.UseWebSockets();
       app.MapWebSocketManager("/audiows", serviceProvider.GetService<AudioMessageHandler>());
-
-      //app.UseWebSockets(webSocketOptions);
-      //app.UseCustomWebSocketManager();
-
       _log.Debug("Added web sockets");
 
 
@@ -96,18 +78,11 @@ namespace GoogleSTT
           await next();
         }
       });
-      
       _log.Debug("Configured web server");
 
 
       app.UseCookiePolicy();
       _log.Debug("Added CookiePolicy");
-
-      //app.UseSignalR(routes =>  
-      //{  
-      //  routes.MapHub<ChatHub>("/chatHub");  
-      //  routes.MapHub<AudioHub>("/audioHub");  
-      //}); 
 
       app.UseMvc(routes =>
       {

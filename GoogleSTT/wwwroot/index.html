@@ -11,91 +11,19 @@
 <body>
     <p>This is the start:</p>
     <div id="result"></div>
-    <form id="labnol" method="get" action="https://www.google.com/search">
-        <div class="speech">
-            <input type="text" name="q" id="transcript" placeholder="Speak" />
-            <img onclick="configureAudio()" src="//i.imgur.com/cHidSVu.gif" />
-            <button onclick="stopRecording()">Stop</button>
-        </div>
-        <hr />
-        <ul id="messages">
-            <li>Messages below</li>
-        </ul>
-
-        <div class="container">
-            <div class="row"> </div>
-            <div class="row">
-                <div class="col-md-12">
-                    <div class="col-md-6">
-                        <div class="col-md-3">User</div>
-                        <div class="col-md-9"><input type="text" id="userName" /></div>
-                    </div>
-                </div>
-                <div class="col-md-12">
-                    <div class="col-md-6">
-                        <div class="col-md-3">Message</div>
-                        <div class="col-md-9">
-                            <input type="text" id="userMessage" />
-                            <!-- <input type="button" id="sendMessage" value="Send Message" /> -->
-                            <input type="button" id="conenctWS" value="Connect" onclick="connect()" />
-                            <input type="button" id="conenctStatus" value="Status" onclick="status()" />
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="row">
-                <div class="col-12">
-                    <hr />
-                </div>
-            </div>
-            <div class="row">
-                <div class="col-6"> </div>
-                <div class="col-6">
-                    <ul id="messagesList"></ul>
-                </div>
-            </div>
-        </div>
-    </form>
-
-    <script src="lib/signalr/signalr.js"></script>
-    <script>
-        // const chatConn = new signalR.HubConnectionBuilder()
-        //     .withUrl("/chatHub")
-        //     .build();
-
-        // const audioConn = new signalR.HubConnectionBuilder()
-        //     .withUrl("/audioHub")
-        //     .build();
-
-        //This method receive the message and Append to our list  
-        // chatConn.on("ReceiveMessage", (user, message) => {
-        //     const msg = message.replace(/&/g, "&").replace(/</g, "<").replace(/>/g, ">");
-        //     const encodedMsg = user + " :: " + msg;
-        //     const li = document.createElement("li");
-        //     li.textContent = encodedMsg;
-        //     document.getElementById("messagesList").appendChild(li);
-        // });
-
-        // chatConn.start().catch(err => console.error(err.toString()));
-        // audioConn.start().catch(err => console.error(err.toString()));
-
-        //Send the message  
-
-        // document.getElementById("sendMessage").addEventListener("click", event => {
-        //     const user = document.getElementById("userName").value;
-        //     const message = document.getElementById("userMessage").value;
-        //     chatConn.invoke("SendMessage", user, message).catch(err => console.error(err.toString()));
-        //     event.preventDefault();
-        // });
-
-        // function SendAudio(data) {
-        //     audioConn.invoke("SendAudio", data).catch(err => console.error(err.toString()));
-        //     sendMessage(data);
-        // }
-
-    </script>
+    <div class="speech">
+        <input type="button" id="conenctWS" value="1 WS Connect" onclick="connect()" />
+        <input type="button" id="conenctStatus" value="2 WS Status" onclick="status()" />
+        <input type="button" onclick="configureAudio()" value="3 Record Audio" />
+        <input type="button" onclick="stopRecording()" value="4 Stop Recoring" />
+    </div>
+    <hr />
+    <ul id="messages">
+        <li>Messages below</li>
+    </ul>
 
     <script>
+        var microphone;
         var myStream;
         var scriptProcessor;
         var isRecording = false;
@@ -110,7 +38,7 @@
             }
             console.log("Start recording");
             isRecording = true;
-            audioContext = new AudioContext();
+            window.AudioContext = window.AudioContext || window.webkitAudioContext;
             navigator.mediaDevices.getUserMedia(
                 {
                     audio: {
@@ -138,22 +66,18 @@
         }
         function startRecording(stream, callback) {
             isRecording = false;
-            console.log("Before audioContext:",audioContext);
             audioContext = audioContext || new AudioContext();
             if (!audioContext) {
                 return;
             }
-            console.log("After audioContext:",audioContext);
 
-            var microphone = audioContext.createMediaStreamSource(stream);
-            var  analyser = audioContext.createAnalyser();
+            microphone = audioContext.createMediaStreamSource(stream);
+            var analyser = audioContext.createAnalyser();
             scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
 
             microphone.connect(analyser);
-
-            console.log("audioContext.sampleRate", audioContext.sampleRate);
-
             scriptProcessor.connect(audioContext.destination);
+
             // This is for registering to the “data” event of audio stream, without overwriting the default scriptProcessor.onAudioProcess function if there is one.
             scriptProcessor.addEventListener('audioprocess', streamAudioData);
         }
@@ -161,6 +85,7 @@
         const streamAudioData = e => {
             const floatSamples = e.inputBuffer.getChannelData(0);
 
+            // attempt to change the byte format
             var sendMe = new Float32Array(floatSamples.length / 16);
             for (var i = 0; i * 16 < floatSamples.length; i++) {
                 sendMe[i] = floatSamples[i * 16];
@@ -171,19 +96,30 @@
 
         function stopRecording() {
             try {
-                console.log("Stop recording");
                 isRecording = false;
 
-                if (myStream) {
-                    // stop the browser microphone
-                    myStream.getTracks()[0].stop();
-                    myStream = null;
+                if(socket)
+                {
+                    socket.close();
+                }
+
+                if(microphone)
+                {
+                    console.log("Stop recording");
+                    microphone.disconnect();
                 }
 
                 if (scriptProcessor) {
-                    // Stop listening the stream from the michrophone
+                    console.log("Stop processing");
+                    scriptProcessor.disconnect();
                     scriptProcessor.removeEventListener('audioprocess', streamAudioData);
                 }
+
+                if (myStream) {
+                    console.log("Stop bufferring");
+                    myStream.stop();
+                }
+
             }
             catch (e) {
                 console.error(e);
@@ -192,6 +128,7 @@
     </script>
 
     <script language="javascript" type="text/javascript">
+        var list = document.getElementById("messages");
         var uri = "wss://" + window.location.host + "/audiows";
 
         console.log("AudioWS: " + uri);
@@ -222,17 +159,7 @@
             console.log("status...", socket);
         }
 
-        var list = document.getElementById("messages");
-        // var button = document.getElementById("sendMessage");
-        // button.addEventListener("click", function () {
-
-        //     var input = document.getElementById("textInput");
-        //     sendMessage(input.value);
-
-        //     input.value = "";
-        // });
         function sendMessage(message) {
-            //console.log("Sending: audio data");
             socket.send(message);
         }
         function appendItem(list, message) {

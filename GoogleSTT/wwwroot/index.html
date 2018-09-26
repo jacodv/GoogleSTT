@@ -136,10 +136,6 @@
             try {
                 isRecording = false;
 
-                if (socket) {
-                    socket.close();
-                }
-
                 if (microphone) {
                     console.log("Stop recording");
                     microphone.disconnect();
@@ -154,6 +150,10 @@
                 if (myStream) {
                     console.log("Stop bufferring");
                     myStream.stop();
+                }
+
+                if (socket) {
+                    setTimeout(function(){socket.close();}, 1000);
                 }
 
             }

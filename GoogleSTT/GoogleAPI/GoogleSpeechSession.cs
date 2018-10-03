@@ -20,8 +20,8 @@ namespace GoogleSTT.GoogleAPI
     private bool _responseIsBeingHandled = false;
     private Task _handleResponses;
     private MemoryStream _audioBuffer = new MemoryStream();
-    private string _audioFileName = null;
-    private FileStream _audioFileStream;
+    //private string _audioFileName = null;
+    ///private FileStream _audioFileStream;
 
     public GoogleSpeechSession(string socketId, GoogleSessionConfig config, Action<string, string[]> processTranscripts)
     {
@@ -34,8 +34,8 @@ namespace GoogleSTT.GoogleAPI
         Config = config;
         ProcessTranscripts = processTranscripts;
 
-        _audioFileName = $"{DateTime.Now:yyyyMMddHHmmss}.wav";
-        _audioFileStream = File.OpenWrite(Path.Combine($@"c:\temp", _audioFileName));
+       // _audioFileName = $"GoogleSpeechSession{DateTime.Now:yyyyMMddHHmmss}.wav";
+       // _audioFileStream = File.OpenWrite(Path.Combine($@"c:\temp\Upload", _audioFileName));
       }
       catch (Exception e)
       {
@@ -72,16 +72,19 @@ namespace GoogleSTT.GoogleAPI
       _closeTokenSource = new CancellationTokenSource();
     }
 
-    public async Task Close()
+    public async Task Close(bool writeComplete)
     {
       lock (_writeLock)
       {
         IsOpen = false;
         //_closeTokenSource?.Cancel();
       }
-      _audioFileStream.Close();
-      await _streamingCall.WriteCompleteAsync();
-      await _handleResponses;
+      //_audioFileStream.Close();
+      if (writeComplete)
+      {
+        await _streamingCall.WriteCompleteAsync();
+        await _handleResponses;
+      }
     }
 
     public bool IsOpen { get; private set; }
@@ -97,6 +100,7 @@ namespace GoogleSTT.GoogleAPI
           _responseIsBeingHandled = true;
           Connect().Wait();
           IsOpen = true;
+          _log.Info($"Start handling the responses: {SockedId}");
           _handleResponses = Task.Run(HandleResponses);
         }
 
@@ -108,7 +112,7 @@ namespace GoogleSTT.GoogleAPI
             return Task.FromResult(-1);
           }
 
-          _audioFileStream.WriteAsync(buffer, 0, buffer.Length).Wait();
+          //_audioFileStream.WriteAsync(buffer, 0, buffer.Length).Wait();
           _audioBuffer.Write(buffer, 0, buffer.Length);
 
           if (_audioBuffer.Length < 32768)
@@ -134,6 +138,12 @@ namespace GoogleSTT.GoogleAPI
         }
         return Task.FromResult(0);
       }
+    }
+
+    public async Task WriteComplete()
+    {
+      await _streamingCall.WriteCompleteAsync();
+      await _handleResponses;
     }
 
     public async Task HandleResponses()

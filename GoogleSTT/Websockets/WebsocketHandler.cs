@@ -11,11 +11,13 @@ namespace GoogleSTT.Websockets
 {
   public abstract class WebSocketHandler
   {
+    private readonly bool _streamingAudio;
     private static readonly ILog _log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
     protected WebSocketConnectionManager WebSocketConnectionManager { get; set; }
 
-    public WebSocketHandler(WebSocketConnectionManager webSocketConnectionManager)
+    public WebSocketHandler(WebSocketConnectionManager webSocketConnectionManager, bool streamingAudio=false)
     {
+      _streamingAudio = streamingAudio;
       WebSocketConnectionManager = webSocketConnectionManager;
     }
 
@@ -28,7 +30,7 @@ namespace GoogleSTT.Websockets
     public virtual async Task OnDisconnected(WebSocket socket)
     {
       _log.Debug($"Disconnecting socket: {socket.CloseStatusDescription}");
-      await WebSocketConnectionManager.RemoveSocket(WebSocketConnectionManager.GetId(socket));
+      await WebSocketConnectionManager.RemoveSocket(WebSocketConnectionManager.GetId(socket), _streamingAudio);
     }
 
     public async Task SendMessageAsync(WebSocket socket, string message)

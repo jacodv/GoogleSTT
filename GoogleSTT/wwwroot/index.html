@@ -1,210 +1,24 @@
 ﻿<!DOCTYPE html>
 <html>
-
-<head>
-    <meta charset="utf-8" />
-    <title>GoogleSTT</title>
-
-    <!-- HTML5 Speech Recognition API -->
-</head>
-
-<body>
-    <p>This is the start:</p>
-    <div id="result"></div>
-    <div class="speech">
-        <input type="button" id="conenctWS" value="1 WS Connect" onclick="connect()" />
-        <input type="button" id="conenctStatus" value="2 WS Status" onclick="status()" />
-        <input type="button" onclick="configureAudio()" value="3 Record Audio" />
-        <input type="button" onclick="stopRecording()" value="4 Stop Recoring" />
-    </div>
-    <hr />
-    <ul id="messages">
-        <li>Messages below</li>
-    </ul>
-
-    <script>
-        async function audioBufferToWaveBlob(audioBuffer) {
-
-            return new Promise(function (resolve, reject) {
-
-                var worker = new Worker('./waveWorker.js');
-
-                worker.onmessage = function (e) {
-                    var blob = new Blob([e.data.buffer], { type: "audio/wav" });
-                    resolve(blob);
-                };
-
-                let pcmArrays = [];
-                for (let i = 0; i < audioBuffer.numberOfChannels; i++) {
-                    pcmArrays.push(audioBuffer.getChannelData(i));
-                }
-
-                worker.postMessage({
-                    pcmArrays,
-                    config: { sampleRate: audioBuffer.sampleRate }
-                });
-
-            });
-
-        }
-    </script>
-
-    <script>
-        var microphone;
-        var myStream;
-        var scriptProcessor;
-        var isRecording = false;
-        var audioContext;
-        const SAMPLE_RATE = 16000;
-        const SAMPLE_SIZE = 16;
-
-        function configureAudio() {
-            if (isRecording) {
-                stopRecording();
-                return;
-            }
-            console.log("Start recording");
-            isRecording = true;
-            window.AudioContext = window.AudioContext || window.webkitAudioContext;
-            navigator.mediaDevices.getUserMedia(
-                {
-                    audio: {
-                        // mandatory: {
-                        //     googEchoCancellation: 'true',
-                        //     googAutoGainControl: 'false',
-                        //     googNoiseSuppression: 'true',
-                        //     googHighpassFilter: 'true',
-                        // },
-                        echoCancellation: true,
-                        channelCount: 1,
-                        sampleRate: {
-                            ideal: SAMPLE_RATE
-                        },
-                        sampleSize: SAMPLE_SIZE
-                    },
-                }).then(startRecording)
-                .catch(e => {
-                    /* If there are some errors with parameter configurations or 
-                    user didn’t give you the access to the microphone inside the browser, you end here. */
-                    console.log(e);
-                    throw e;
-                }
-                );
-        }
-        function startRecording(stream, callback) {
-            isRecording = false;
-            audioContext = audioContext || new AudioContext();
-            if (!audioContext) {
-                return;
-            }
-
-            microphone = audioContext.createMediaStreamSource(stream);
-            var analyser = audioContext.createAnalyser();
-            scriptProcessor = audioContext.createScriptProcessor(4096, 2, 2);
-
-            microphone.connect(analyser);
-            scriptProcessor.connect(audioContext.destination);
-
-            // This is for registering to the “data” event of audio stream, without overwriting the default scriptProcessor.onAudioProcess function if there is one.
-            scriptProcessor.addEventListener('audioprocess', streamAudioData);
-        }
-
-        const streamAudioData = e => {
-
-            // var buffer = [
-            //     e.inputBuffer.getChannelData(0),
-            //     e.inputBuffer.getChannelData(1)];
-
-            // attempt to change the byte format
-            // var sendMe = new Float32Array(floatSamples.length / 16);
-            // for (var i = 0; i * 16 < floatSamples.length; i++) {
-            //     sendMe[i] = floatSamples[i * 16];
-            // }
-
-            audioBufferToWaveBlob(e.inputBuffer)
-                .then(waveBlob => {
-                    console.log("sending wave blob");
-                    sendMessage(waveBlob);
-                })
-                .catch(e => {
-                    console.error(e);
-                });
-
-        };
-
-        function stopRecording() {
-            try {
-                isRecording = false;
-
-                if (microphone) {
-                    console.log("Stop recording");
-                    microphone.disconnect();
-                }
-
-                if (scriptProcessor) {
-                    console.log("Stop processing");
-                    scriptProcessor.disconnect();
-                    scriptProcessor.removeEventListener('audioprocess', streamAudioData);
-                }
-
-                if (myStream) {
-                    console.log("Stop bufferring");
-                    myStream.stop();
-                }
-
-                if (socket) {
-                    setTimeout(function(){socket.close();}, 1000);
-                }
-
-            }
-            catch (e) {
-                console.error(e);
-            }
-        }
-    </script>
-
-    <script language="javascript" type="text/javascript">
-        var list = document.getElementById("messages");
-        var uri = "wss://" + window.location.host + "/audiows";
-
-        console.log("AudioWS: " + uri);
-
-        function connect() {
-            console.log("connecting...")
-            socket = new WebSocket(uri);
-            //socket.binaryType = 'arraybuffer';
-
-            socket.onopen = function (event) {
-                console.log("opened connection to " + uri);
-            };
-            socket.onclose = function (event) {
-                console.log("closed connection from " + uri);
-            };
-            socket.onmessage = function (event) {
-                appendItem(list, event.data);
-                console.log(event.data);
-            };
-            socket.onerror = function (event) {
-                console.log("error: " + event.data);
-            };
-
-            console.log("done...", socket);
-        }
-
-        function status() {
-            console.log("status...", socket);
-        }
-
-        function sendMessage(message) {
-            socket.send(message);
-        }
-        function appendItem(list, message) {
-            var item = document.createElement("li");
-            item.appendChild(document.createTextNode(message));
-            list.appendChild(item);
-        }    
-    </script>
-
-</body>
-
+ <head>
+  <meta charset="UTF-8">
+  <title>Simple Recorder.js demo with record, stop and pause</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ </head>
+ <body>
+  <div id="controls">
+   <button id="recordButton">Connect to Websocket and Record</button>
+   <button id="pauseButton" disabled>Pause</button>
+   <button id="stopButton" disabled>Stop</button>
+   <button id="closeWS" disabled>Close Websocket</button>
+  </div>
+  <h3>Recordings</h3>
+  <ol id="recordingsList"></ol>
+  <hr/>
+  <ul id="messages"></ul>
+  <!-- inserting these scripts at the end to be able to use all the elements in the DOM -->
+  <script src="recorder.js"></script>
+  <script src="app.js"></script>
+  <script src="websocket.js"></script>
+ </body>
 </html>

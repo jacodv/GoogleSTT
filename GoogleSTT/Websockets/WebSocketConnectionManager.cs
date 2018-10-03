@@ -38,11 +38,11 @@ namespace GoogleSTT.Websockets
       GoogleSpeechFactory.CreateSession(socketId, new GoogleSessionConfig(), processTranscripts);
     }
 
-    public async Task RemoveSocket(string id)
+    public async Task RemoveSocket(string id, bool writeComplete)
     {
       WebSocket socket;
       _sockets.TryRemove(id, out socket);
-      GoogleSpeechFactory.CloseSession(id);
+      GoogleSpeechFactory.CloseSession(id, writeComplete);
 
       await socket.CloseAsync(closeStatus: WebSocketCloseStatus.NormalClosure, 
         statusDescription: "Closed by the WebSocketManager", 

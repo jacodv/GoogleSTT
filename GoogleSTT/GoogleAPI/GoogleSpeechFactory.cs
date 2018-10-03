@@ -25,14 +25,19 @@ namespace GoogleSTT.GoogleAPI
       return session;
     }
 
-    public static void CloseSession(string socketId)
+    public static void CloseSession(string socketId, bool writeComplete)
     {
       _log.Debug("Closing new GOOGLE SPEECH SESSION");
       if (_sessions.ContainsKey(socketId))
-        _sessions[socketId].Close().Wait();
+        _sessions[socketId].Close(writeComplete).Wait();
     }
 
-    public static async Task SendAudio(string socketId, byte[] data)
+    public static async Task StreamAudio(string socketId, byte[] data)
+    {
+      await SendAudio(socketId, data, false);
+    }
+
+    public static async Task SendAudio(string socketId, byte[] data, bool writeComplete)
     {
       //_log.Debug("Sending to GOOGLE SPEECH SESSION");
       if(string.IsNullOrEmpty(socketId))
@@ -47,6 +52,9 @@ namespace GoogleSTT.GoogleAPI
       }
 
       await _sessions[socketId].SendAudio(data);
+
+      if (writeComplete)
+        await _sessions[socketId].WriteComplete();
     }
   }
 }

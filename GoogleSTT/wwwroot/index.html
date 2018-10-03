@@ -1,24 +1,29 @@
 ﻿<!DOCTYPE html>
 <html>
- <head>
-  <meta charset="UTF-8">
-  <title>Simple Recorder.js demo with record, stop and pause</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
- </head>
- <body>
-  <div id="controls">
-   <button id="recordButton">Connect to Websocket and Record</button>
-   <button id="pauseButton" disabled>Pause</button>
-   <button id="stopButton" disabled>Stop</button>
-   <button id="closeWS" disabled>Close Websocket</button>
-  </div>
-  <h3>Recordings</h3>
-  <ol id="recordingsList"></ol>
-  <hr/>
-  <ul id="messages"></ul>
-  <!-- inserting these scripts at the end to be able to use all the elements in the DOM -->
-  <script src="recorder.js"></script>
-  <script src="app.js"></script>
-  <script src="websocket.js"></script>
- </body>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Simple Recorder.js demo with record, stop and pause</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+
+<body>
+    <div>Goto: <a href="mediaStreamRecorder.html">Stream Sample</a></div>
+
+    <div id="controls">
+        <button id="recordButton">Connect to Websocket and Record</button>
+        <button id="pauseButton" disabled>Pause</button>
+        <button id="stopButton" disabled>Stop</button>
+        <button id="closeWS" disabled>Close Websocket</button>
+    </div>
+    <h3>Recordings</h3>
+    <ol id="recordingsList"></ol>
+    <hr />
+    <ul id="messages"></ul>
+    <!-- inserting these scripts at the end to be able to use all the elements in the DOM -->
+    <script src="recorder.js"></script>
+    <script src="app.js"></script>
+    <script src="websocket.js"></script>
+</body>
+
 </html>

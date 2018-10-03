@@ -19,7 +19,7 @@ namespace GoogleSTT.GoogleAPI
     private CancellationTokenSource _closeTokenSource;
     private bool _responseIsBeingHandled = false;
     private Task _handleResponses;
-    private MemoryStream _audioBuffer = new MemoryStream();
+    //private MemoryStream _audioBuffer = new MemoryStream();
     //private string _audioFileName = null;
     ///private FileStream _audioFileStream;
 
@@ -113,23 +113,28 @@ namespace GoogleSTT.GoogleAPI
           }
 
           //_audioFileStream.WriteAsync(buffer, 0, buffer.Length).Wait();
-          _audioBuffer.Write(buffer, 0, buffer.Length);
+          //_audioBuffer.Write(buffer, 0, buffer.Length);
 
-          if (_audioBuffer.Length < 32768)
+          //if (_audioBuffer.Length < 32768)
+          //{
+          //  _log.Debug($"Buffering: {buffer.Length} | {_audioBuffer.Length}");
+          //  return Task.FromResult(0);
+          //}
+
+          //_audioBuffer.Position = 0;
+          using (var stream = new MemoryStream(buffer))
           {
-            _log.Debug($"Buffering: {buffer.Length} | {_audioBuffer.Length}");
-            return Task.FromResult(0);
+            _streamingCall.WriteAsync(new StreamingRecognizeRequest()
+            {
+              AudioContent = ByteString.FromStream(stream)
+            }).Wait();
+            _log.Info($"Sent audio data to Google: {stream.Length}");
+
+            stream.Close();
           }
 
-          _audioBuffer.Position = 0;
-          _streamingCall.WriteAsync(new StreamingRecognizeRequest()
-          {
-            AudioContent = ByteString.FromStream(_audioBuffer)
-          }).Wait();
-          _log.Info($"Sent audio data to Google: {_audioBuffer.Length}");
-
-          _audioBuffer.Dispose();
-          _audioBuffer = new MemoryStream();
+          //_audioBuffer.Dispose();
+          //_audioBuffer = new MemoryStream();
         }
         catch (Exception sendEx)
         {

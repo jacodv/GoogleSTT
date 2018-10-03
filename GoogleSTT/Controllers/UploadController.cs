@@ -79,5 +79,89 @@ namespace GoogleSTT.Controllers
         return Json("Upload Failed: " + ex.Message);
       }
     }
+
+    [HttpPost, DisableRequestSizeLimit]
+    [Route("UploadStream/{id}")]
+    public async Task<IActionResult> UploadStream(string id)
+    {
+      try
+      {
+        if (id == null) throw new ArgumentNullException(nameof(id));
+
+        _log.Info($"Sending audio to session:{id}");
+
+        var file = Request.Form.Files.LastOrDefault(f=>f.Length>0);
+        const string folderName = "Upload";
+        var newPath = Path.Combine(@"c:\temp", folderName);
+        if (!Directory.Exists(newPath))
+        {
+          Directory.CreateDirectory(newPath);
+        }
+
+        if (file==null || file.Length <= 0) 
+          return Json("No data found!");
+        
+        var fileName = $"uploadedStream{DateTime.Now:yyyyMMddHHmmss.fff}.wav";
+        var fullPath = Path.Combine(newPath, fileName);
+
+        var fileData = new byte[file.Length];
+
+        using (var stream = new MemoryStream())
+        {
+          await file.CopyToAsync(stream, CancellationToken.None);
+          fileData = stream.ToArray();
+        }
+
+        System.IO.File.WriteAllBytes(fullPath, fileData);
+
+        try
+        {
+          await GoogleSpeechFactory.SendAudio(id, fileData, false);
+          _log.Info($"Sent audio:{fileData.Length} to session:{id}");
+        }
+        catch (Exception e)
+        {
+          _log.Error("Failed to send audio to GOOGLE", e);
+          throw;
+        }
+
+        return Json("Upload Successful.");
+      }
+      catch (Exception ex)
+      {
+        _log.Error(ex);
+        return Json("Upload Failed: " + ex.Message);
+      }
+    }
+
+    [HttpPost]
+    [Route("StopStream/{id}")]
+    public Task<JsonResult> StopStream(string id)
+    {
+      try
+      {
+        if (id == null) throw new ArgumentNullException(nameof(id));
+
+        _log.Info($"Stopping audio session:{id}");
+
+        try
+        {
+         GoogleSpeechFactory.CloseSession(id, true);
+        }
+        catch (Exception e)
+        {
+          _log.Error("Failed to CLOSE the session to GOOGLE", e);
+          throw;
+        }
+
+        return Task.FromResult(Json("Closed Successfully"));
+      }
+      catch (Exception ex)
+      {
+        _log.Error(ex);
+        return Task.FromResult(Json("Close Failed: " + ex.Message));
+      }
+    }
+
   }
 }

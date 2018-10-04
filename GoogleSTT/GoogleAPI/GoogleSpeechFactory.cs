@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.IO;
 using System.Reflection;
 using System.Threading.Tasks;
+using Google.Api.Gax;
 using log4net;
 
 namespace GoogleSTT.GoogleAPI
@@ -10,17 +11,17 @@ namespace GoogleSTT.GoogleAPI
   public static class GoogleSpeechFactory
   {
     private static readonly ILog _log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-    private static ConcurrentDictionary<string, GoogleSpeechSession> _sessions;
+    private static readonly ConcurrentDictionary<string, GoogleSpeechSession> _sessions;
 
     static GoogleSpeechFactory()
     {
       _sessions = new ConcurrentDictionary<string, GoogleSpeechSession>();
     }
 
-    public static GoogleSpeechSession CreateSession(string socketId, GoogleSessionConfig config, Action<string,string[]> processTranscripts)
+    public static GoogleSpeechSession CreateSession(string socketId, GoogleSessionConfig config, Action<string, string[]> processTranscripts)
     {
       _log.Debug("Creating new GOOGLE SPEECH SESSION");
-      var session = new GoogleSpeechSession(socketId, config,processTranscripts);
+      var session = new GoogleSpeechSession(socketId, config, processTranscripts);
       _sessions.TryAdd(socketId, session);
       return session;
     }
@@ -29,21 +30,16 @@ namespace GoogleSTT.GoogleAPI
     {
       _log.Debug("Closing new GOOGLE SPEECH SESSION");
       if (_sessions.ContainsKey(socketId))
-        _sessions[socketId].Close(writeComplete).Wait();
+        _sessions[socketId].Close(writeComplete);
     }
 
-    public static async Task StreamAudio(string socketId, byte[] data)
+    public static void SendAudio(string socketId, byte[] data, bool writeComplete)
     {
-      await SendAudio(socketId, data, false);
-    }
-
-    public static async Task SendAudio(string socketId, byte[] data, bool writeComplete)
-    {
-      //_log.Debug("Sending to GOOGLE SPEECH SESSION");
-      if(string.IsNullOrEmpty(socketId))
+      if (string.IsNullOrEmpty(socketId))
         throw new ArgumentNullException(nameof(socketId));
-      if(!_sessions.ContainsKey(socketId))
+      if (!_sessions.ContainsKey(socketId))
         throw new InvalidOperationException($"SocketId: {socketId} not registered");
+      _log.Debug($"Received audio on for: {socketId} | {data.Length}");
 
       if (data.Length == 0)
       {
@@ -51,10 +47,11 @@ namespace GoogleSTT.GoogleAPI
         return;
       }
 
-      await _sessions[socketId].SendAudio(data);
+      _sessions[socketId].SendAudio(data);
 
       if (writeComplete)
-        await _sessions[socketId].WriteComplete();
+        _sessions[socketId].WriteComplete();
+
     }
   }
 }

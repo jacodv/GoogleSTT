@@ -21,6 +21,7 @@ namespace GoogleSTT.Websockets
 
       var socketId = WebSocketConnectionManager.GetId(socket);
       _log.Debug($"SocketId:{socketId}-Connected");
+      // ReSharper disable once StringLiteralTypo
       await SendMessageAsync(socket,$"SOCKETID:{socketId}");
     }
     public override async Task OnDisconnected(WebSocket socket)
@@ -53,14 +54,12 @@ namespace GoogleSTT.Websockets
       try
       {
         var socketId = WebSocketConnectionManager.GetId(socket);
-
-        //_log.Debug($"Socket ReceiveAsyncData:{result.Count}-{buffer.Length}");
-        //_log.Debug($"Socket ReceiveAsyncData:{Convert.ToBase64String(buffer,0,result.Count)}");
-        await GoogleSpeechFactory.StreamAudio(socketId, new ArraySegment<byte>(buffer, 0, result.Count).Array);
+        await Task.Run(()=> GoogleSpeechFactory.SendAudio(socketId, new ArraySegment<byte>(buffer, 0, result.Count).Array, false));
       }
       catch (Exception e)
       {
         _log.Error($"Socket ReceiveAsyncData:{e.Message}",e);
+        throw;
       }
     }
    

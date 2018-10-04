@@ -15,7 +15,7 @@ namespace GoogleSTT.Websockets
     private static readonly ILog _log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
     protected WebSocketConnectionManager WebSocketConnectionManager { get; set; }
 
-    public WebSocketHandler(WebSocketConnectionManager webSocketConnectionManager, bool streamingAudio=false)
+    protected WebSocketHandler(WebSocketConnectionManager webSocketConnectionManager, bool streamingAudio=false)
     {
       _streamingAudio = streamingAudio;
       WebSocketConnectionManager = webSocketConnectionManager;
@@ -24,13 +24,14 @@ namespace GoogleSTT.Websockets
     public virtual async Task OnConnected(WebSocket socket)
     {
       _log.Debug($"Adding new web socket: {socket.State}");
-      WebSocketConnectionManager.AddSocket(socket, _processTranscipts);
+      await Task.Run(()=>WebSocketConnectionManager.AddSocket(socket, _processTranscripts));
     }
 
     public virtual async Task OnDisconnected(WebSocket socket)
     {
-      _log.Debug($"Disconnecting socket: {socket.CloseStatusDescription}");
-      await WebSocketConnectionManager.RemoveSocket(WebSocketConnectionManager.GetId(socket), _streamingAudio);
+      var socketId = WebSocketConnectionManager.GetId(socket);
+      _log.Debug($"Disconnecting socket: {socketId} || {socket.CloseStatusDescription}");
+      await WebSocketConnectionManager.RemoveSocket(socketId, _streamingAudio);
     }
 
     public async Task SendMessageAsync(WebSocket socket, string message)
@@ -65,7 +66,7 @@ namespace GoogleSTT.Websockets
     public abstract Task ReceiveAsyncText(WebSocket socket, WebSocketReceiveResult result, byte[] buffer);
     public abstract Task ReceiveAsyncData(WebSocket socket, WebSocketReceiveResult result, byte[] buffer);
      
-    private void _processTranscipts(string socketId, string[] transcripts)
+    private void _processTranscripts(string socketId, string[] transcripts)
     {
       SendMessageAsync(socketId, string.Join("~", transcripts)).Wait();
     }

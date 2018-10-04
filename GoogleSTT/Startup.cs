@@ -36,6 +36,15 @@ namespace GoogleSTT
         options.MinimumSameSitePolicy = SameSiteMode.None;
       });
 
+      services.AddLogging(
+        builder =>
+        {
+          builder.AddFilter("Microsoft", LogLevel.Warning)
+            .AddFilter("System", LogLevel.Warning)
+            .AddFilter("NToastNotify", LogLevel.Warning)
+            .AddConsole();
+        });
+
       services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
       services.AddWebSocketManager();
     }
@@ -43,7 +52,7 @@ namespace GoogleSTT
     // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
     public void Configure(IApplicationBuilder app, IHostingEnvironment env, IServiceProvider serviceProvider, ILoggerFactory loggerFactory)
     {
-      loggerFactory.AddLog4Net(); 
+      loggerFactory.AddLog4Net();
       _log.Debug("Added logging");
 
       if (env.IsDevelopment())

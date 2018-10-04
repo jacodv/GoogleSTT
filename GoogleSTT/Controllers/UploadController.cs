@@ -17,107 +17,88 @@ namespace GoogleSTT.Controllers
   public class UploadController : Controller
   {
     private static readonly ILog _log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-    private IHostingEnvironment _hostingEnvironment;
-
-    public UploadController(IHostingEnvironment hostingEnvironment)
-    {
-      _hostingEnvironment = hostingEnvironment;
-    }
 
     [HttpPost, DisableRequestSizeLimit]
     [Route("UploadFile/{id}")]
     public async Task<IActionResult> UploadFile(string id)
     {
-      try
-      {
-        if (id == null) throw new ArgumentNullException(nameof(id));
-
-        _log.Info($"Sending audio to session:{id}");
-
-        var file = Request.Form.Files.LastOrDefault(f=>f.Length>0);
-        const string folderName = "Upload";
-        //var webRootPath = _hostingEnvironment.WebRootPath;
-        //var newPath = Path.Combine(webRootPath, folderName);
-        var newPath = Path.Combine(@"c:\temp", folderName);
-        if (!Directory.Exists(newPath))
-        {
-          Directory.CreateDirectory(newPath);
-        }
-
-        if (file==null || file.Length <= 0) 
-          return Json("No data found!");
-        
-        var fileName = $"uploadedFile{DateTime.Now:yyyyMMddHHmmss}.wav";//ContentDispositionHeaderValue.Parse(file.ContentDisposition).FileName.Trim('"');
-        var fullPath = Path.Combine(newPath, fileName);
-
-        var fileData = new byte[file.Length];
-
-        using (var stream = new MemoryStream())
-        {
-          await file.CopyToAsync(stream, CancellationToken.None);
-          fileData = stream.ToArray();
-        }
-
-        System.IO.File.WriteAllBytes(fullPath, fileData);
-
-        try
-        {
-          await GoogleSpeechFactory.SendAudio(id, fileData, true);
-          _log.Info($"Sent audio:{fileData.Length} to session:{id}");
-        }
-        catch (Exception e)
-        {
-          _log.Error("Failed to send audio to GOOGLE", e);
-          throw;
-        }
-
-        return Json("Upload Successful.");
-      }
-      catch (Exception ex)
-      {
-        _log.Error(ex);
-        return Json("Upload Failed: " + ex.Message);
-      }
+      return await _submitStream(id, true, $"uploadedFile{DateTime.Now:yyyyMMddHHmmss}.wav");
     }
 
     [HttpPost, DisableRequestSizeLimit]
     [Route("UploadStream/{id}")]
     public async Task<IActionResult> UploadStream(string id)
     {
+      return await _submitStream(id, false, $"uploadedStream{DateTime.Now:yyyyMMddHHmmss.fff}.wav");
+    }
+
+    [HttpPost]
+    [Route("StopStream/{id}")]
+    public IActionResult StopStream(string id)
+    {
       try
       {
-        if (id == null) throw new ArgumentNullException(nameof(id));
+        if (id == null)
+          throw new ArgumentNullException(nameof(id));
 
-        _log.Info($"Sending audio to session:{id}");
+        _log.Info($"Stopping audio session:{id}");
 
-        var file = Request.Form.Files.LastOrDefault(f=>f.Length>0);
-        const string folderName = "Upload";
-        var newPath = Path.Combine(@"c:\temp", folderName);
-        if (!Directory.Exists(newPath))
-        {
-          Directory.CreateDirectory(newPath);
-        }
+        GoogleSpeechFactory.CloseSession(id, true);
 
-        if (file==null || file.Length <= 0) 
+        return Json("Closed Successfully");
+      }
+      catch (Exception ex)
+      {
+        _log.Error(ex);
+        return Json("Close Failed: " + ex.Message);
+      }
+    }
+
+    #region Private
+    private static void _writeBufferToFile(byte[] fileData, string fileName)
+    {
+      const string folderName = "Upload";
+      var newPath = Path.Combine(@"c:\temp", folderName);
+      if (!Directory.Exists(newPath))
+      {
+        Directory.CreateDirectory(newPath);
+      }
+
+      var fullPath = Path.Combine(newPath, fileName);
+      System.IO.File.WriteAllBytes(fullPath, fileData);
+    }
+    private async Task<byte[]> _getUploadedBuffer()
+    {
+      byte[] fileData;
+      var file = Request.Form.Files.LastOrDefault(f => f.Length > 0);
+      if (file == null || file.Length <= 0)
+        return default(byte[]);
+
+      using (var stream = new MemoryStream())
+      {
+        await file.CopyToAsync(stream, CancellationToken.None);
+        fileData = stream.ToArray();
+      }
+
+      return fileData;
+    }
+    private async Task<IActionResult> _submitStream(string id, bool writeComplete, string debugFileName)
+    {
+      if (id == null)
+        throw new ArgumentNullException(nameof(id));
+
+      try
+      {
+        var fileData = await _getUploadedBuffer();
+        if (fileData.Length == 0)
           return Json("No data found!");
-        
-        var fileName = $"uploadedStream{DateTime.Now:yyyyMMddHHmmss.fff}.wav";
-        var fullPath = Path.Combine(newPath, fileName);
 
-        var fileData = new byte[file.Length];
-
-        using (var stream = new MemoryStream())
-        {
-          await file.CopyToAsync(stream, CancellationToken.None);
-          fileData = stream.ToArray();
-        }
-
-        System.IO.File.WriteAllBytes(fullPath, fileData);
+        _writeBufferToFile(fileData, debugFileName);
 
         try
         {
-          await GoogleSpeechFactory.SendAudio(id, fileData, false);
-          _log.Info($"Sent audio:{fileData.Length} to session:{id}");
+          GoogleSpeechFactory.SendAudio(id, fileData, writeComplete);
+          _log.Debug($"Sent audio:{fileData.Length} to session:{id}");
         }
         catch (Exception e)
         {
@@ -133,35 +114,7 @@ namespace GoogleSTT.Controllers
         return Json("Upload Failed: " + ex.Message);
       }
     }
-
-    [HttpPost]
-    [Route("StopStream/{id}")]
-    public Task<JsonResult> StopStream(string id)
-    {
-      try
-      {
-        if (id == null) throw new ArgumentNullException(nameof(id));
-
-        _log.Info($"Stopping audio session:{id}");
-
-        try
-        {
-         GoogleSpeechFactory.CloseSession(id, true);
-        }
-        catch (Exception e)
-        {
-          _log.Error("Failed to CLOSE the session to GOOGLE", e);
-          throw;
-        }
-
-        return Task.FromResult(Json("Closed Successfully"));
-      }
-      catch (Exception ex)
-      {
-        _log.Error(ex);
-        return Task.FromResult(Json("Close Failed: " + ex.Message));
-      }
-    }
+    #endregion
 
   }
 }

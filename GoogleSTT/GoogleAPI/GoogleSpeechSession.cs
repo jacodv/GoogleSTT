@@ -20,6 +20,7 @@ namespace GoogleSTT.GoogleAPI
     private Task _processQueueItems;
     private ConcurrentQueue<AudioQueueItem> _audioQueue = new ConcurrentQueue<AudioQueueItem>();
     private int _queueProcessingDelay = 50;
+    private readonly MemoryStream _fullAudioBuffer=new MemoryStream();
 
     public GoogleSpeechSession(string socketId, GoogleSessionConfig config, Action<string, string[]> processTranscripts)
     {
@@ -46,6 +47,8 @@ namespace GoogleSTT.GoogleAPI
 
     public void SendAudio(byte[] buffer)
     {
+      _fullAudioBuffer.WriteAsync(buffer, 0, buffer.Length);
+      _log.Debug($"Full Buffer:{_sessionId}: Length:{_fullAudioBuffer.Length}");
       _audioQueue.Enqueue(new AudioQueueItem() { Buffer = buffer, WriteComplete = false });
     }
     public void WriteComplete()
@@ -125,6 +128,7 @@ namespace GoogleSTT.GoogleAPI
 
       _processQueueItems.Wait(_queueProcessingDelay * 4);
       _handleResponses.Wait();
+
       IsOpen = false;
     }
 
@@ -197,6 +201,14 @@ namespace GoogleSTT.GoogleAPI
     private async Task _writeComplete()
     {
       _log.Debug($"_writeComplete: SocketId={SockedId} - SessionId={_sessionId}");
+
+      if (_fullAudioBuffer?.Length > 0)
+      {
+        _fullAudioBuffer.Position = 0;
+        File.WriteAllBytes($@"c:\temp\upload\sessionAudio{_sessionId}.wav", _fullAudioBuffer.ToArray());
+        _fullAudioBuffer.Dispose();
+      }
+
       await _streamingCall.WriteCompleteAsync();
       await _handleResponses;
     }

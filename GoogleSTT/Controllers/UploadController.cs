@@ -16,7 +16,14 @@ namespace GoogleSTT.Controllers
   [Route("api/[controller]")]
   public class UploadController : Controller
   {
+    private readonly ISpeechService _speechService;
     private static readonly ILog _log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+
+    public UploadController(ISpeechService speechService)
+    {
+      _speechService = speechService;
+    }
+
 
     [HttpPost, DisableRequestSizeLimit]
     [Route("UploadFile/{id}")]
@@ -43,7 +50,7 @@ namespace GoogleSTT.Controllers
 
         _log.Info($"Stopping audio session:{id}");
 
-        GoogleSpeechFactory.CloseSession(id, true);
+        _speechService.CloseSession(id, true);
 
         return Json("Closed Successfully");
       }
@@ -97,7 +104,7 @@ namespace GoogleSTT.Controllers
 
         try
         {
-          GoogleSpeechFactory.SendAudio(id, fileData, writeComplete);
+          _speechService.SendAudio(id, fileData, writeComplete);
           _log.Debug($"Sent audio:{fileData.Length} to session:{id}");
         }
         catch (Exception e)

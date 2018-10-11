@@ -8,17 +8,17 @@ using log4net;
 
 namespace GoogleSTT.GoogleAPI
 {
-  public static class GoogleSpeechFactory
+  public class SpeechService : ISpeechService
   {
-    private static readonly ILog _log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-    private static readonly ConcurrentDictionary<string, GoogleSpeechSession> _sessions;
+    private readonly ILog _log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+    private readonly ConcurrentDictionary<string, GoogleSpeechSession> _sessions;
 
-    static GoogleSpeechFactory()
+    public SpeechService()
     {
       _sessions = new ConcurrentDictionary<string, GoogleSpeechSession>();
     }
 
-    public static GoogleSpeechSession CreateSession(string socketId, GoogleSessionConfig config, Action<string, string[]> processTranscripts)
+    public GoogleSpeechSession CreateSession(string socketId, GoogleSessionConfig config, Action<string, string[]> processTranscripts)
     {
       _log.Debug("Creating new GOOGLE SPEECH SESSION");
       var session = new GoogleSpeechSession(socketId, config, processTranscripts);
@@ -26,14 +26,14 @@ namespace GoogleSTT.GoogleAPI
       return session;
     }
 
-    public static void CloseSession(string socketId, bool writeComplete)
+    public void CloseSession(string socketId, bool writeComplete)
     {
       _log.Debug("Closing new GOOGLE SPEECH SESSION");
       if (_sessions.ContainsKey(socketId))
         _sessions[socketId].Close(writeComplete);
     }
 
-    public static void SendAudio(string socketId, byte[] data, bool writeComplete)
+    public void SendAudio(string socketId, byte[] data, bool writeComplete)
     {
       if (string.IsNullOrEmpty(socketId))
         throw new ArgumentNullException(nameof(socketId));

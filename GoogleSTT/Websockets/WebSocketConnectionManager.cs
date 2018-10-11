@@ -13,8 +13,14 @@ namespace GoogleSTT.Websockets
 {
   public class WebSocketConnectionManager
   {
+    private readonly ISpeechService _speechService;
     private static readonly ILog _log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
     private ConcurrentDictionary<string, WebSocket> _sockets = new ConcurrentDictionary<string, WebSocket>();
+
+    public WebSocketConnectionManager(ISpeechService speechService)
+    {
+      _speechService = speechService;
+    }
 
     public WebSocket GetSocketById(string id)
     {
@@ -35,14 +41,14 @@ namespace GoogleSTT.Websockets
       var socketId = CreateConnectionId();
       _sockets.TryAdd(socketId, socket);
 
-      GoogleSpeechFactory.CreateSession(socketId, new GoogleSessionConfig(), processTranscripts);
+      _speechService.CreateSession(socketId, new GoogleSessionConfig(), processTranscripts);
     }
 
     public async Task RemoveSocket(string id, bool writeComplete)
     {
       WebSocket socket;
       _sockets.TryRemove(id, out socket);
-      GoogleSpeechFactory.CloseSession(id, writeComplete);
+      _speechService.CloseSession(id, writeComplete);
 
       await socket.CloseAsync(closeStatus: WebSocketCloseStatus.NormalClosure, 
         statusDescription: "Closed by the WebSocketManager", 

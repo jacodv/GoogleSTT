@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Reflection;
+using GoogleSTT.GoogleAPI;
 using GoogleSTT.Websockets;
 using log4net;
 using Microsoft.AspNetCore.Builder;
@@ -44,6 +45,8 @@ namespace GoogleSTT
             .AddFilter("NToastNotify", LogLevel.Warning)
             .AddConsole();
         });
+
+      services.AddSingleton<ISpeechService>(new SpeechService());
 
       services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
       services.AddWebSocketManager();

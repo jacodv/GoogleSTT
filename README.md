@@ -21,10 +21,12 @@ Send full audio file from web page to backend to Google STT
  3. Save chucks to disk and ensure are playable WAV files for each chunck
  4. Send each WAV chunk to Google STT
  5. No response (400 error)
+ 
+ * Received some results on the `GoogleSample.html` tests using web sockets and streaming
+ 1. But mostly still 400 errors in the Google Cloud Console for Speech To Text Api
 
 ## TODO
 * Achieve `First prize`
-* Clean up code
 * Document code and update README
 * merge to master
 * Answer https://stackoverflow.com/questions/52518467/streaming-audio-buffer-from-a-web-page-to-c-sharp-google-cloud-speech-to-text-sd

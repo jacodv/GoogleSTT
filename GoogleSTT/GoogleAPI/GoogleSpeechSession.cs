@@ -96,6 +96,7 @@ namespace GoogleSTT.GoogleAPI
     }
     public async Task ProcessQueue()
     {
+      var tempBuffer = new MemoryStream();
       _log.Debug($"Start processing the audio queue: SocketId:{SockedId} | SessionId:{_sessionId}");
       while (true)
       {
@@ -113,13 +114,26 @@ namespace GoogleSTT.GoogleAPI
           _log.Debug($"Dequeuing: SocketId:{SockedId} | SessionId:{_sessionId}");
           if (queueItem.Buffer?.Length > 0)
           {
-            _queueTimeOut.Change(TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(1));
-            await _submitToGoogle(queueItem.Buffer);
+            _queueTimeOut.Change(TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(1));
+            tempBuffer.Write(queueItem.Buffer, 0, queueItem.Buffer.Length);
+          }
+
+          if (tempBuffer.Length > 40000)
+          {
+            await _submitToGoogle(tempBuffer.ToArray());
+            tempBuffer.Close();
+            tempBuffer = new MemoryStream();
           }
 
           if (!queueItem.WriteComplete)
             continue;
       
+          if (tempBuffer.Length > 0)
+          {
+            await _submitToGoogle(tempBuffer.ToArray());
+            tempBuffer.Close();
+          }
+
           await _writeComplete();
           _queueTimeOut?.Dispose();
           return;
@@ -172,8 +186,7 @@ namespace GoogleSTT.GoogleAPI
             SampleRateHertz = Config.SampleRateHertz,
             LanguageCode = Config.LanguageCode,
             Model = "default",
-            EnableAutomaticPunctuation = true,
-            EnableWordTimeOffsets = true
+            EnableAutomaticPunctuation = true
           },
           InterimResults = Config.InterimResults          
         }

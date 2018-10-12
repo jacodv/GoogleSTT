@@ -32,6 +32,8 @@ namespace GoogleSTT.Websockets
             
       await base.OnDisconnected(socket);
 
+      await Task.Run(()=> _speechService.CloseSession(socketId, true));
+
       _log.Debug($"{socketId}: Disconnected");
       await SendMessageToAllAsync($"{socketId} disconnected");
     }

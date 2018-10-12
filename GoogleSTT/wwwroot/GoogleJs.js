@@ -191,7 +191,7 @@
   
       function newWebsocket() {
         var websocketPromise = new Promise(function(resolve, reject) {
-          var socket = new WebSocket('wss://' + location.host + '/transcribe');
+          var socket = new WebSocket('wss://' + location.host + '/audiows');
           socket.addEventListener('open', resolve);
           socket.addEventListener('error', reject);
         });
@@ -245,8 +245,13 @@
         }
       }
   
+      var transcriptElement = document.getElementById('transcript');
+      console.log("transcriptElement", transcriptElement);
+      var firstChild = transcriptElement.childNodes[0];
+      console.log("firstChild", firstChild);
+
       var transcript = {
-        el: document.getElementById('transcript').childNodes[0],
+        el: firstChild,
         current: document.createElement('div')
       };
       transcript.el.appendChild(transcript.current);

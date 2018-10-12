@@ -10,9 +10,11 @@ namespace GoogleSTT.Websockets
 {
   public class AudioMessageHandler: WebSocketHandler
   {
+    private readonly ISpeechService _speechService;
     private static readonly ILog _log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-    public AudioMessageHandler(WebSocketConnectionManager webSocketConnectionManager) : base(webSocketConnectionManager)
+    public AudioMessageHandler(WebSocketConnectionManager webSocketConnectionManager, ISpeechService speechService) : base(webSocketConnectionManager)
     {
+      _speechService = speechService;
     }
 
     public override async Task OnConnected(WebSocket socket)
@@ -29,6 +31,8 @@ namespace GoogleSTT.Websockets
       var socketId = WebSocketConnectionManager.GetId(socket);
             
       await base.OnDisconnected(socket);
+
+      await Task.Run(()=> _speechService.CloseSession(socketId, true));
 
       _log.Debug($"{socketId}: Disconnected");
       await SendMessageToAllAsync($"{socketId} disconnected");
@@ -54,7 +58,7 @@ namespace GoogleSTT.Websockets
       try
       {
         var socketId = WebSocketConnectionManager.GetId(socket);
-        await Task.Run(()=> GoogleSpeechFactory.SendAudio(socketId, new ArraySegment<byte>(buffer, 0, result.Count).Array, false));
+        await Task.Run(()=> _speechService.SendAudio(socketId, new ArraySegment<byte>(buffer, 0, result.Count).Array, false));
       }
       catch (Exception e)
       {

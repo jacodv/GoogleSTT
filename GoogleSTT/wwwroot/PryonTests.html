@@ -1,16 +1,22 @@
 ﻿<!DOCTYPE html>
 <html>
-
 <head>
-    <meta charset="UTF-8">
-    <title>Simple Recorder.js demo with record, stop and pause</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="utf-8" />
+    <title>Pryon Voice Integration</title>
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js"
+            integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ="
+            crossorigin="anonymous"></script>
 </head>
-
 <body>
+    <div>
+        <h3>Authentication</h3>
+        <label for="token">Token</label>
+        <pre id="token"></pre>
+        <input type="button" id="getAuthToken" onclick="getAuthToken()" value="Get Authenticated" />
+    </div>
+
     <div>Goto: <a href="mediaStreamRecorder.html">Stream Sample</a></div>
     <div>Goto: <a href="GoogleSample.html">Google Sample</a></div>
-    <div>Goto: <a href="PryonTests.html">Pryon Tests</a></div>
 
     <div id="controls">
         <button id="recordButton">Connect to Websocket and Record</button>
@@ -22,10 +28,10 @@
     <ol id="recordingsList"></ol>
     <hr />
     <ul id="messages"></ul>
-    <!-- inserting these scripts at the end to be able to use all the elements in the DOM -->
-    <script src="recorder.js"></script>
-    <script src="app.js"></script>
-    <script src="websocket.js"></script>
-</body>
 
+
+    <script type="text/javascript" src="pryon.js"></script>
+
+
+</body>
 </html>

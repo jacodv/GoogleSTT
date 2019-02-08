@@ -23,6 +23,7 @@ namespace GoogleSTT.GoogleAPI
     private readonly MemoryStream _fullAudioBuffer=new MemoryStream();
     private Timer _queueTimeOut;
     private int _timeoutSeconds = 3;
+    private bool _receivedFirstAudio;
 
     public GoogleSpeechSession(string socketId, GoogleSessionConfig config, Action<string, string[]> processTranscripts)
     {
@@ -50,11 +51,14 @@ namespace GoogleSTT.GoogleAPI
 
     public void SendAudio(byte[] buffer)
     {
+      _receivedFirstAudio = true;
+      _log.Debug("Adding audio buffer queue item");
       _fullAudioBuffer.WriteAsync(buffer, 0, buffer.Length);
       _audioQueue.Enqueue(new AudioQueueItem() { Buffer = buffer, WriteComplete = false });
     }
     public void WriteComplete()
     {
+      _log.Debug("Adding write complete queue item");
       _audioQueue.Enqueue(new AudioQueueItem() { WriteComplete = true });
     }
     public async Task HandleResponses()
@@ -111,7 +115,7 @@ namespace GoogleSTT.GoogleAPI
           if (queueItem == null)
             break;
 
-          _log.Debug($"Dequeuing: SocketId:{SockedId} | SessionId:{_sessionId}");
+          _log.Debug($"Dequeuing: SocketId:{SockedId} | SessionId:{_sessionId} | {queueItem.Buffer.Length} | {queueItem.WriteComplete}");
           if (queueItem.Buffer?.Length > 0)
           {
             _queueTimeOut.Change(TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(1));
@@ -146,9 +150,28 @@ namespace GoogleSTT.GoogleAPI
       if (writeComplete)
         WriteComplete();
 
-      _processQueueItems.Wait(_queueProcessingDelay * 4);
+      _processQueueItems?.ContinueWith(t =>
+      {
+        if(t.IsFaulted) 
+          _log.Error(t.Exception);
+      }).Wait(_queueProcessingDelay * 4);
       _handleResponses.Wait();
 
+      IsOpen = false;
+    }
+    public void Dispose()
+    {
+      _log.Debug($"Disposing the GoogleSpeechSession:{SockedId}");
+      _processQueueItems?.Dispose();
+      _handleResponses?.Dispose();
+      _queueTimeOut?.Dispose();
+    }
+    public async Task SendFile(byte[] data)
+    {
+      _receivedFirstAudio = true;
+      await _submitToGoogle(data);
+      WriteComplete();
+      _handleResponses.Wait();
       IsOpen = false;
     }
 
@@ -237,19 +260,17 @@ namespace GoogleSTT.GoogleAPI
 
     private void _processingTimeOut()
     {
+      if (!_receivedFirstAudio)
+      {
+        _queueTimeOut.Change(TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(1));
+        return;
+      }
       _log.Info($"Closing due to processing timeout: {_sessionId}");
       _queueTimeOut.Dispose();
       Close(true);
     }
     #endregion
 
-    public void Dispose()
-    {
-      _log.Debug($"Disposing the GoogleSpeechSession:{SockedId}");
-      _processQueueItems?.Dispose();
-      _handleResponses?.Dispose();
-      _queueTimeOut?.Dispose();
-    }
   }
 
   public class AudioQueueItem

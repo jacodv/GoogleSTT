@@ -29,7 +29,10 @@ namespace GoogleSTT.Controllers
     [Route("UploadFile/{id}")]
     public async Task<IActionResult> UploadFile(string id)
     {
-      return await _submitStream(id, true, $"uploadedFile{DateTime.Now:yyyyMMddHHmmss}.wav");
+      var debugFileName = $"uploadedFile{DateTime.Now:yyyyMMddHHmmss}.wav";
+      var fileData = await _getUploadedBuffer();
+      await _speechService.SendFile(id, fileData);
+      return Json("Upload File Successful.");
     }
 
     [HttpPost, DisableRequestSizeLimit]

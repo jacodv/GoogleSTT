@@ -2,6 +2,7 @@
 using System.IO;
 using System.Reflection;
 using GoogleSTT.GoogleAPI;
+using GoogleSTT.Settings;
 using GoogleSTT.Websockets;
 using log4net;
 using Microsoft.AspNetCore.Builder;
@@ -30,6 +31,10 @@ namespace GoogleSTT
     public void ConfigureServices(IServiceCollection services)
     {
       _log.Debug("Start Configuration services");
+
+      services.Configure<PryonSettings>(Configuration.GetSection("PryonSettings"));
+
+
       services.Configure<CookiePolicyOptions>(options =>
       {
         // This lambda determines whether user consent for non-essential cookies is needed for a given request.

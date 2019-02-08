@@ -1,0 +1,117 @@
+<html>
+
+<head>
+    <title>Text-to-Speech</title>
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
+        crossorigin="anonymous"></script>
+</head>
+
+<body>
+    <div>
+        <label for="textInput">Enter Text</label>
+        <input type="text" id="textInput" />
+        <button id="sendText" onclick="sendTextToGoogle()">Speak</button>
+
+        <h3>Recordings</h3>
+        <ol id="recordingsList"></ol>
+
+    </div>
+
+    <script>
+        var list = document.getElementById("messages");
+
+
+        function sendTextToGoogle() {
+            var text = $("#textInput").val();
+
+            console.log("Sending: ", text);
+
+            var payload = {
+                'input': {
+                    'text': text
+                },
+                'voice': {
+                    'languageCode': 'en-us',
+                    'name': 'en-US-Wavenet-C',
+                    'ssmlGender': 'FEMALE'
+                },
+                'audioConfig': {
+                    'audioEncoding': 'MP3'
+                }
+            };
+
+            $.ajax({
+                url: "https://texttospeech.googleapis.com/v1/text:synthesize",
+                method: "POST",
+                dataType: 'json',
+                data: JSON.stringify(payload),
+                beforeSend: function (xhr) {
+                    xhr.setRequestHeader('Content-Type', 'application/json; charset=utf-8');
+                    xhr.setRequestHeader('X-Goog-Api-Key', 'AIzaSyBdZj1BlwmEJZ8p-7VU6yCrtuC772blx8A');
+                },
+                success: function (data) {
+                    console.log('success', data)
+                    var audioBase64 = data.audioContent;
+                    createDownloadLink(audioBase64);
+                },
+                error: function (xhr) {
+                    console.log('error', xhr);
+                }
+            })
+        }
+
+        function createDownloadLink(base64String) {
+
+            var url = URL.createObjectURL(base64toBlob(base64String, "audio/mp3"));
+            var au = document.createElement('audio');            
+            var li = document.createElement('li');
+            var link = document.createElement('a');
+
+            //add controls to the <audio> element
+            au.controls = true;
+            //au.src = url;
+            au.src = "data:audio/mp3;base64," + base64String;
+            $(au).attr("autoplay","autoplay");
+
+            //link the a element to the blob
+            link.href = url;
+            link.download = new Date().toISOString() + '.mp3';
+            link.innerHTML = link.download;
+
+            //add the new audio and a elements to the li element
+            li.appendChild(au);
+            li.appendChild(link);
+
+            var filename = new Date().toISOString(); //filename to send to server without extension            
+
+            //add the li element to the ordered list
+            recordingsList.appendChild(li);
+        }
+
+        function base64toBlob(base64Data, contentType, sliceSize) {
+            contentType = contentType || '';
+            sliceSize = sliceSize || 512;
+
+            var byteCharacters = atob(base64Data);
+            var byteArrays = [];
+
+            for (var offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+                var slice = byteCharacters.slice(offset, offset + sliceSize);
+
+                var byteNumbers = new Array(slice.length);
+                for (var i = 0; i < slice.length; i++) {
+                    byteNumbers[i] = slice.charCodeAt(i);
+                }
+
+                var byteArray = new Uint8Array(byteNumbers);
+
+                byteArrays.push(byteArray);
+            }
+
+            var blob = new Blob(byteArrays, { type: contentType });
+            return blob;
+        }
+    </script>
+</body>
+
+</html>

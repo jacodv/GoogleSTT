@@ -33,6 +33,23 @@ namespace GoogleSTT.GoogleAPI
         _sessions[socketId].Close(writeComplete);
     }
 
+    public async Task SendFile(string socketId, byte[] data)
+    {
+      if (string.IsNullOrEmpty(socketId))
+        throw new ArgumentNullException(nameof(socketId));
+      if (!_sessions.ContainsKey(socketId))
+        throw new InvalidOperationException($"SocketId: {socketId} not registered");
+      _log.Debug($"Received File on for: {socketId} | {data.Length}");
+
+      if (data.Length == 0)
+      {
+        _log.Warn("NO FILE DATA FOR GOOGLE SPEECH SESSION");
+        return;
+      }
+
+      await _sessions[socketId].SendFile(data);
+    }
+
     public void SendAudio(string socketId, byte[] data, bool writeComplete)
     {
       if (string.IsNullOrEmpty(socketId))

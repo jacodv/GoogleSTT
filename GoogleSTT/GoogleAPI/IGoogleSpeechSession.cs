@@ -13,5 +13,6 @@ namespace GoogleSTT.GoogleAPI
     void WriteComplete();
     Task HandleResponses();
     void Close(bool writeComplete);
+    Task SendFile(byte[] data);
   }
 }

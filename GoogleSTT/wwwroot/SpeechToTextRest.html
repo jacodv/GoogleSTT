@@ -5,12 +5,13 @@
     <meta charset="UTF-8">
     <title>Simple Recorder.js demo with record, stop and pause</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
+        crossorigin="anonymous"></script>
 </head>
 
 <body>
     <div>Goto: <a href="mediaStreamRecorder.html">Stream Sample</a></div>
     <div>Goto: <a href="GoogleSample.html">Google Sample</a></div>
-    <div>Goto: <a href="PryonTests.html">Pryon Tests</a></div>
 
     <div id="controls">
         <button id="recordButton">Connect to Websocket and Record</button>
@@ -24,7 +25,7 @@
     <ul id="messages"></ul>
     <!-- inserting these scripts at the end to be able to use all the elements in the DOM -->
     <script src="recorder.js"></script>
-    <script src="app.js"></script>
+    <script src="appRest.js"></script>
     <script src="websocket.js"></script>
 </body>
 

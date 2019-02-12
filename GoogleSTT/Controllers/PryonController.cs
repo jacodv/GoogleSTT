@@ -25,7 +25,7 @@ namespace GoogleSTT.Controllers
     public async Task<PryonToken> GetAuthToken()
     {
       var token = await _getPryonAuthtoken(_settings);
-      token.WebSocketUrl = $"{_settings.Host}{_settings.WebSocketEndPoint}";
+      token.WebSocketUrl = _settings.WebSocketEndPoint;
       return token;
     }
 
@@ -44,7 +44,7 @@ namespace GoogleSTT.Controllers
       var response = await client.ExecuteTaskAsync<PryonToken>(req);
       
       if(!response.IsSuccessful)
-        throw new InvalidOperationException("Failed to logon to Pryon: " + response.ErrorException);
+        throw new InvalidOperationException($"Failed to logon to Pryon: {response.StatusCode} - {settings.Host}{settings.AuthEndPoint}" + response.ErrorException);
 
       return response.Data;
     }

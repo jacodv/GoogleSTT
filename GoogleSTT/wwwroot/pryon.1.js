@@ -1,7 +1,20 @@
 ﻿///
-var token;
-var socket;
-var audioStreamer;
+var token = {};
+var socket = {};
+var streamer = {};
+
+//CREDIT: https://addpipe.com/blog/using-recorder-js-to-capture-wav-audio-in-your-html5-web-site/
+
+//webkitURL is deprecated but nevertheless
+URL = window.URL || window.webkitURL;
+
+var gumStream; //stream from getUserMedia()
+var rec; //Recorder.js object
+var input; //MediaStreamAudioSourceNode we'll be recording
+
+// shim for AudioContext when it's not avb. 
+var AudioContext = window.AudioContext || window.webkitAudioContext;
+var audioContext = new AudioContext; //new audio context to help us record
 
 var startExchangeButton = document.getElementById("startExchangeButton");
 var recordButton = document.getElementById("recordButton");
@@ -15,12 +28,11 @@ startExchangeButton.addEventListener("click", startExchange);
 recordButton.addEventListener("click", startRecording);
 stopButton.addEventListener("click", stopRecording);
 pauseButton.addEventListener("click", pauseRecording);
-closeButton.addEventListener("click", websocketClose);
+
 
 $(document).ready(function() {
     console.log("Document Ready");
-    audioStreamer = new AudioStreamer(statusCallback, socket);
-    audioStreamer.init();
+    var context = new AudioContext();
 });
 
 function getAuthToken() {
@@ -38,11 +50,11 @@ function getAuthToken() {
 
             setTimeout(() => {
                 websocketConnect();
+                createStreamer();
             }, 100);
         },
         error: function(error) {
             alert("Failed: " + JSON.stringify(error));
-            console.error(error);
         }
     };
 
@@ -72,20 +84,30 @@ function websocketConnect() {
     };
     console.log("done...", socket);
 }
+function createStreamer() {
+    var uri = token.webSocketUrl + token.access_token;
 
-function websocketClose()
-{
-    if(socket)
-        socket.close();
+    var defaultConfig = {
+        codec: {
+            sampleRate: 1600,
+            channels: 1,
+            app: 2049,
+            frameDuration: 10,
+            bufferSize: 3072
+        },
+        server: {
+            host: uri
+        }
+    };
+
+    streamer = new WSAudioAPI.Streamer(defaultConfig, socket);
 }
-
 function startExchange() {
     var startMessage = {
         "action": "START",
         "exchange_request": {
-            "raw_audio": {
-                "audio_encoding": "LINEAR16",
-                "sample_rate_hertz": 16000,
+            "input": {
+                "raw_text": "what is my net worth"
             }
         }
     };
@@ -93,20 +115,14 @@ function startExchange() {
     console.log("startMessage", startMessage);
 
     socket.send(JSON.stringify(startMessage));
-
-    setTimeout(()=>{self.startRecording();},500);
 }
 
 function startRecording() {
     console.log("recordButton clicked");
 
     try {
-        audioStreamer.startRecording();
-        recordButton.disabled = true;
-        stopButton.disabled = false;
-        pauseButton.disabled = false;
-    }    
-    catch (e) {
+        streamer.start();
+    } catch (e) {
         console.error(e);
         //enable the record button if getUserMedia() fails
         recordButton.disabled = false;
@@ -115,7 +131,8 @@ function startRecording() {
     }
 }
 function pauseRecording() {
-    console.error("pauseButton clicked : NOT SUPPORTED");
+    console.log("pauseButton clicked rec.recording=", rec.recording);
+    streamer.mute();
 }
 function stopRecording() {
     console.log("stopButton clicked");
@@ -128,12 +145,7 @@ function stopRecording() {
     //reset button just in case the recording is stopped while paused
     pauseButton.innerHTML = "Pause";
 
-    audioStreamer.stopRecording();
-}
-
-function statusCallback(message)
-{
-    console.log(message);
+    streamer.stop();
 }
 
 function receiveMessage(event) {
